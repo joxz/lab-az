@@ -1,0 +1,13 @@
+# whatif deployment
+az deployment sub what-if --location 'westeurope' --template-file main.bicep
+
+#real deployment
+az deployment sub create --location 'westeurope' --template-file main.bicep
+
+# vm route tables
+az network nic show-effective-route-table -n nic-vm-gw -g rg-zsc-vpngw -o table
+az network nic show-effective-route-table -n nic-vm-sp -g rg-zsc-vpngw -o table
+
+# delete rg
+
+az group delete -n rg-zsc-vpngw --no-wait -y

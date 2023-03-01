@@ -2,12 +2,14 @@ param vpngwName string
 param location string
 param gwSubnetId string
 param sharedkey string
+param zscalerNode1 string
+param zscalerNode2 string
 
-resource lngzscalerfra4 'Microsoft.Network/localNetworkGateways@2022-07-01' = {
-  name: 'lng-zscaler-fra4'
+resource lngzscaler1 'Microsoft.Network/localNetworkGateways@2022-07-01' = {
+  name: 'lng-zsc-fra4'
   location: location
   properties: {
-    fqdn: 'fra4-vpn.zscaler.net'
+    fqdn: zscalerNode1
     localNetworkAddressSpace: {
       addressPrefixes: [
         '0.0.0.0/1'
@@ -17,11 +19,11 @@ resource lngzscalerfra4 'Microsoft.Network/localNetworkGateways@2022-07-01' = {
   }
 }
 
-resource lngzscalerams2 'Microsoft.Network/localNetworkGateways@2022-07-01' = {
-  name: 'lng-zscaler-ams2'
+resource lngzscaler2 'Microsoft.Network/localNetworkGateways@2022-07-01' = {
+  name: 'lng-zsc-ams2'
   location: location
   properties: {
-    fqdn: 'ams2-2-vpn.zscaler.net'
+    fqdn: zscalerNode2
     localNetworkAddressSpace: {
       addressPrefixes: [
         '0.0.0.0/1'
@@ -32,7 +34,7 @@ resource lngzscalerams2 'Microsoft.Network/localNetworkGateways@2022-07-01' = {
 }
 
 resource vpngwpip01 'Microsoft.Network/publicIPAddresses@2022-07-01' = {
-  name: 'vpngw-pip01'
+  name: 'pip-vpngw01'
   location: location
   sku: {
     name: 'Standard'
@@ -45,7 +47,7 @@ resource vpngwpip01 'Microsoft.Network/publicIPAddresses@2022-07-01' = {
 }
 
 resource vpngwpip02 'Microsoft.Network/publicIPAddresses@2022-07-01' = {
-  name: 'vpngw-pip02'
+  name: 'pip-vpngw02'
   location: location
   sku: {
     name: 'Standard'
@@ -61,23 +63,35 @@ resource vpngw 'Microsoft.Network/virtualNetworkGateways@2022-07-01' = {
   name: vpngwName
   location: location
   properties: {
+    allowRemoteVnetTraffic: true
     enablePrivateIpAddress: true
     activeActive: true
     enableBgp: false
     vpnGatewayGeneration: 'Generation2'
     vpnType: 'RouteBased'
+    sku: {
+      name: 'VpnGw2'
+      tier: 'VpnGw2'
+    }
+    gatewayType: 'Vpn'
     ipConfigurations: [
       {
-        id: vpngwpip01.id
+        name: 'pip-01'
         properties: {
+          publicIPAddress: {
+            id: vpngwpip01.id
+          }
           subnet: {
             id: gwSubnetId
           }
         }
       }
       {
-        id: vpngwpip02.id
+        name: 'pip-02'
         properties: {
+          publicIPAddress: {
+            id: vpngwpip02.id
+          }
           subnet: {
             id: gwSubnetId
           }
@@ -88,8 +102,8 @@ resource vpngw 'Microsoft.Network/virtualNetworkGateways@2022-07-01' = {
 }
 
 // https://help.zscaler.com/zia/understanding-ipsec-vpns
-resource connectiontozscaler 'Microsoft.Network/connections@2022-07-01' = {
-  name: 's2s-zscaler'
+resource conntozscalerfra 'Microsoft.Network/connections@2022-07-01' = {
+  name: 's2s-zsc-${zscalerNode1}'
   location: location
   properties: {
     sharedKey: sharedkey
@@ -99,8 +113,47 @@ resource connectiontozscaler 'Microsoft.Network/connections@2022-07-01' = {
     dpdTimeoutSeconds: 20
     enableBgp: false
     useLocalAzureIpAddress: false
-    virtualNetworkGateway1: vpngw
-    localNetworkGateway2: lngzscalerams2
+    virtualNetworkGateway1:  {
+      id: vpngw.id
+      properties: {}
+    }
+    localNetworkGateway2: {
+      id: lngzscaler1.id
+      properties: {}
+    }
+    ipsecPolicies: [
+      {
+        dhGroup: 'DHGroup2'
+        ikeEncryption: 'AES256'
+        ikeIntegrity: 'SHA256'
+        ipsecEncryption: 'None'
+        ipsecIntegrity: 'SHA256'
+        pfsGroup: 'None'
+        saDataSizeKilobytes: 102400000
+        saLifeTimeSeconds: 28800
+      }
+    ]
+  }
+}
+resource conntozscalerams 'Microsoft.Network/connections@2022-07-01' = {
+  name: 's2s-zsc-${zscalerNode2}'
+  location: location
+  properties: {
+    sharedKey: sharedkey
+    connectionMode: 'Default'
+    connectionProtocol: 'IKEv2'
+    connectionType: 'IPsec'
+    dpdTimeoutSeconds: 20
+    enableBgp: false
+    useLocalAzureIpAddress: false
+    virtualNetworkGateway1: {
+      id: vpngw.id
+      properties: {}
+    }
+    localNetworkGateway2:  {
+      id: lngzscaler2.id
+      properties: {}
+    }
     ipsecPolicies: [
       {
         dhGroup: 'DHGroup2'
