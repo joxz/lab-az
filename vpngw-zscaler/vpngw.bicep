@@ -12,8 +12,8 @@ resource lngzscaler1 'Microsoft.Network/localNetworkGateways@2022-07-01' = {
     fqdn: zscalerNode1
     localNetworkAddressSpace: {
       addressPrefixes: [
-        '0.0.0.0/1'
-        '128.0.0.0/1'
+        '185.46.212.88/32'
+        '185.46.212.89/32'
       ]
     }
   }
@@ -26,8 +26,8 @@ resource lngzscaler2 'Microsoft.Network/localNetworkGateways@2022-07-01' = {
     fqdn: zscalerNode2
     localNetworkAddressSpace: {
       addressPrefixes: [
-        '0.0.0.0/1'
-        '128.0.0.0/1'
+        '185.46.212.88/32'
+        '185.46.212.89/32'
       ]
     }
   }

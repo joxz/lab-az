@@ -18,12 +18,10 @@ resource bastion 'Microsoft.Network/bastionHosts@2022-07-01' = {
   name: 'bas-zsc'
   location: location
   sku: {
-    name: 'Standard'
+    name: 'Basic'
   }
   properties: {
     disableCopyPaste: false
-    enableFileCopy: true
-    enableTunneling: true
     ipConfigurations: [
       {
         name: 'ipconfig1'
