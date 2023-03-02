@@ -70,8 +70,8 @@ resource vpngw 'Microsoft.Network/virtualNetworkGateways@2022-07-01' = {
     vpnGatewayGeneration: 'Generation2'
     vpnType: 'RouteBased'
     sku: {
-      name: 'VpnGw2'
-      tier: 'VpnGw2'
+      name: 'VpnGw2AZ'
+      tier: 'VpnGw2AZ'
     }
     gatewayType: 'Vpn'
     ipConfigurations: [
