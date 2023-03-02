@@ -8,6 +8,7 @@ resource vmnicgwsn 'Microsoft.Network/networkInterfaces@2022-07-01' = {
   name: 'nic-vm-gwsn'
   location: location
   properties: {
+    enableIPForwarding: true
     ipConfigurations: [
       {
         name: 'ipconfig1'
