@@ -1,15 +1,18 @@
-# vpngw-zscaler
+# vpngw-zscaler lab notes
 
 This lab builds an IPSec VPN connection from Azure VPN Gateway to Zscaler
 
-Target solution is to use the tunnel to Zscaler in a default route environment and a no-default route environment (manual proxy on a VM)
+Target solution is to use the tunnel to Zscaler in a default route and a no-default route environment (manual proxy on a VM)
 
 Note: This would easily be achievable using a NVA to do the VPN tunnel and DNAT (e.g. Fortigate). However, that is not possible
 
 ## Things to check out 
-- Check Peering settings (remote gateway transit)
-- Try building tunnel with Zscaler (adjust VPN tunnel settings)
-- DNAT solutions for non-default route environments (how to send traffic into the tunnel)
+- [x] Check Peering settings (remote gateway transit)
+- [x] Try building tunnel with Zscaler (adjust VPN tunnel settings)
+- [ ] DNAT solutions for non-default route environments (how to send traffic into the tunnel)
+- [ ] Test VMSS Bicep config
+- [ ] Linux GRE tunnel to Zscaler maybe?
+- [ ] iptables metrics for VM - telegraf iptables plugin
 
 ## Default route env
 
@@ -132,7 +135,7 @@ Problem: Traffic in non-default route environments needs to be forwarded into th
 
 #### Azure Load Balancer
 
-Problem: Health probes probably aren't forwarded through the tunnel, because they originate from `168.63.129.16`, the backend pool is therefore not reachable
+Problem: Health probes probably aren't forwarded into the tunnel, because they originate from `168.63.129.16`. The backend pool is therefore not reachable
 
 > Load Balancer health probes originate from the IP address 168.63.129.16 and must not be blocked for probes to mark your instance as up
 
@@ -219,3 +222,17 @@ COMMIT
 COMMIT
 # Completed on Thu Mar  2 18:58:36 2023
 ````
+
+Downside: Client IP is not preserved because of the DNAT
+
+VM considerations:
+
+[Expected network bandwidth for Azure VMs](https://learn.microsoft.com/en-us/azure/virtual-machines/dv2-dsv2-series#dsv2-series)
+
+DSv2-series  supports ephemeral OS disks
+
+#### Linux NVA as VMSS
+
+For availability and scalability reasons, a VMSS can be considered. The VMs can run kind of stateless with a minimal cloud-init config and ephemeral OS disk.
+
+Instances can be scaled on CPU, RAM and networking metrics

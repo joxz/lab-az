@@ -22,7 +22,7 @@ resource gwsubnet 'Microsoft.Network/virtualNetworks/subnets@2022-07-01' = {
   }
 }
 
-resource gwclientsubnet 'Microsoft.Network/virtualNetworks/subnets@2022-07-01' = {
+resource gwvmsubnet 'Microsoft.Network/virtualNetworks/subnets@2022-07-01' = {
   name: 'gw-sn01'
   parent: gwvnet
   properties: {
@@ -40,7 +40,7 @@ resource bastionsubnet 'Microsoft.Network/virtualNetworks/subnets@2022-07-01' = 
     addressPrefix: '10.1.2.0/24'
   }
   dependsOn: [
-    gwclientsubnet
+    gwvmsubnet
   ]
 }
 
@@ -53,7 +53,7 @@ resource spokevnet 'Microsoft.Network/virtualNetworks@2022-07-01' = {
     }
   }
   dependsOn: [
-    gwclientsubnet
+    gwvmsubnet
   ]
 }
 
@@ -77,7 +77,7 @@ resource peeringgwtospoke 'Microsoft.Network/virtualNetworks/virtualNetworkPeeri
     }
   }
   dependsOn: [
-    spokesubnet, gwclientsubnet, gwsubnet, bastionsubnet
+    spokesubnet, gwvmsubnet, gwsubnet, bastionsubnet
   ]
 }
 
@@ -99,7 +99,7 @@ resource peeringspoketogw 'Microsoft.Network/virtualNetworks/virtualNetworkPeeri
 
 output gwVnetId string = gwvnet.id
 output gwSubnetId string = gwsubnet.id
-output gwClientSubnetId string = gwclientsubnet.id
+output gwVmSubnetId string = gwvmsubnet.id
 output spokeVnetId string = spokevnet.id
 output spokeSubnetId string = spokesubnet.id
 output bastionSubnetId string = bastionsubnet.id

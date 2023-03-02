@@ -36,8 +36,19 @@ module vms './vms.bicep' = {
   scope: rg    // Deployed in the scope of resource group we created above
   params: {
     location: location
-    gwClientSubnetId: vnets.outputs.gwClientSubnetId
+    gwVmSubnetId: vnets.outputs.gwVmSubnetId
     spokeSubnetId: vnets.outputs.spokeSubnetId
+    adminuser: adminuser
+    adminpw: adminpw
+  }
+}
+
+module vmss './vmss.bicep' = {
+  name: 'vmssDeployment-${dateTime}'
+  scope: rg    // Deployed in the scope of resource group we created above
+  params: {
+    location: location
+    gwVmSubnetId: vnets.outputs.gwVmSubnetId
     adminuser: adminuser
     adminpw: adminpw
   }

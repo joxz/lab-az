@@ -1,5 +1,5 @@
 param location string
-param gwClientSubnetId string
+param gwVmSubnetId string
 param spokeSubnetId string
 param adminuser string
 param adminpw string
@@ -15,7 +15,7 @@ resource vmnicgwsn 'Microsoft.Network/networkInterfaces@2022-07-01' = {
         properties: {
           privateIPAllocationMethod: 'Dynamic'
           subnet: {
-            id: gwClientSubnetId
+            id: gwVmSubnetId
           }
         }
       }
@@ -44,6 +44,9 @@ resource vmnicspsn 'Microsoft.Network/networkInterfaces@2022-07-01' = {
 resource vmgwsn 'Microsoft.Compute/virtualMachines@2022-11-01' = {
   name: 'vm-gwsn'
   location: location
+  identity: {
+     type: 'SystemAssigned'
+  }
   properties: {
     hardwareProfile: {
       vmSize: 'Standard_DS2_v2'
