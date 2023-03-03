@@ -4,15 +4,17 @@ This lab builds an IPSec VPN connection from Azure VPN Gateway to Zscaler
 
 Target solution is to use the tunnel to Zscaler in a default route and a no-default route environment (manual proxy on a VM)
 
-Note: This would easily be achievable using a NVA to do the VPN tunnel and DNAT (e.g. Fortigate). However, that is not possible
+Note: This could easily be achievable using a NVA to do the VPN tunnel and DNAT (e.g. Fortigate). However, that is not possible
 
 ## Things to check out 
 - [x] Check Peering settings (remote gateway transit)
 - [x] Try building tunnel with Zscaler (adjust VPN tunnel settings)
-- [ ] DNAT solutions for non-default route environments (how to send traffic into the tunnel)
+- [x] DNAT solutions for non-default route environments (how to send traffic into the tunnel)
 - [ ] Test VMSS Bicep config
-- [ ] Linux GRE tunnel to Zscaler maybe?
-- [ ] iptables metrics for VM - telegraf iptables plugin
+- [x] Linux GRE tunnel to Zscaler maybe? [^1] - not possible
+- [x] iptables metrics for VM - telegraf iptables plugin
+
+[^1]: [What protocols can I use within VNets?](https://learn.microsoft.com/en-us/azure/virtual-network/virtual-networks-faq#what-protocols-can-i-use-within-vnets)
 
 ## Default route env
 
@@ -135,19 +137,19 @@ Problem: Traffic in non-default route environments needs to be forwarded into th
 
 #### Azure Load Balancer
 
-Problem: Health probes probably aren't forwarded into the tunnel, because they originate from `168.63.129.16`. The backend pool is therefore not reachable
+Problem: Health probes probably aren't forwarded into the tunnel, because they originate from `168.63.129.16` [^2]. The backend pool is therefore not reachable
 
 > Load Balancer health probes originate from the IP address 168.63.129.16 and must not be blocked for probes to mark your instance as up
 
 [Azure Load Balancer health probes](https://learn.microsoft.com/en-us/azure/load-balancer/load-balancer-custom-probe-overview#probe-source-ip-address)
 
-[What is IP 168.63.129.16?](https://learn.microsoft.com/en-us/azure/load-balancer/load-balancer-faqs#what-is-ip-168-63-129-16-)
+[^2]: [What is IP 168.63.129.16?](https://learn.microsoft.com/en-us/azure/load-balancer/load-balancer-faqs#what-is-ip-168-63-129-16-)
 
 #### Linux NVA
 
 Use `vm-gwsn` to do a DNAT into the VPN tunnel
 
-Note: Destination port `10101` is a Zscaler dedicated proxy port
+Note: Destination port `10101` is a Zscaler Dedicated Proxy Port (DPP). If that is not available, change the port to 80 or 443 
 
 ```
 sysctl -w net.ipv4.ip_forward=1
@@ -229,10 +231,31 @@ VM considerations:
 
 [Expected network bandwidth for Azure VMs](https://learn.microsoft.com/en-us/azure/virtual-machines/dv2-dsv2-series#dsv2-series)
 
-DSv2-series  supports ephemeral OS disks
+DSv2-series supports ephemeral OS disks, Gen2 and accelerated networking
 
 #### Linux NVA as VMSS
 
 For availability and scalability reasons, a VMSS can be considered. The VMs can run kind of stateless with a minimal cloud-init config and ephemeral OS disk.
 
 Instances can be scaled on CPU, RAM and networking metrics
+
+#### iptables metrics with telegraf
+
+Telegraf with the iptables plugin and the Azure Monior output make it very convenient to see iptables metrics (bytes, packets) in Azure Monitor (also visible in the VM metrics blade)
+
+```
+# /etc/sudoers.d/telegraf
+telegraf ALL=(root) NOPASSWD: /sbin/iptables -nvL*
+
+# check that it works
+sudo -u telegraf sudo iptables -nvL -t nat
+
+# /etc/telegraf/telegraf.conf
+[[inputs.iptables]]
+  use_sudo = true
+  table = "nat"
+  chains = [ "PREROUTING", "POSTROUTING" ]
+
+[[inputs.processes]]
+[[inputs.netstat]]
+```
