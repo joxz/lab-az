@@ -149,7 +149,8 @@ Problem: Health probes probably aren't forwarded into the tunnel, because they o
 
 Use `vm-gwsn` to do a DNAT into the VPN tunnel
 
-Note: Destination port `10101` is a Zscaler Dedicated Proxy Port (DPP). If that is not available, change the port to 80 or 443 
+Note: Destination port `10101` is a Zscaler Dedicated Proxy Port (DPP)[^3]. If that is not available, change the port to 80 or 443 
+[^3]: [Configuring Dedicated Proxy Ports](https://help.zscaler.com/zia/configuring-dedicated-proxy-ports)
 
 ```
 sysctl -w net.ipv4.ip_forward=1
@@ -238,6 +239,19 @@ DSv2-series supports ephemeral OS disks, Gen2 and accelerated networking
 For availability and scalability reasons, a VMSS can be considered. The VMs can run kind of stateless with a minimal cloud-init config and ephemeral OS disk.
 
 Instances can be scaled on CPU, RAM and networking metrics
+
+Updating VMSS settings: custom-data update not available in AZCLI and PS [^4] -> maybe possible by changing the bicep template and running bicep deploy again
+[^4]: [https://github.com/MicrosoftDocs/azure-docs/issues/85791](https://github.com/MicrosoftDocs/azure-docs/issues/85791)
+
+```bash
+> az vmss update -g test-vm -n vmss01 --custom-data cloud-config.yml
+unrecognized arguments: --custom-data cloud-config.yml
+```
+
+> Existing instances in the VMSS will not get the updated custom data, only until they are reimaged.
+  Existing instances in the VMSS that are upgraded will not get the updated custom data.
+  New instances will receive the new custom data [^5]
+[^5]: [https://learn.microsoft.com/en-us/answers/questions/477860/how-can-i-pass-newest-customdata-to-vms-in-the-vms](https://learn.microsoft.com/en-us/answers/questions/477860/how-can-i-pass-newest-customdata-to-vms-in-the-vms)
 
 #### iptables metrics with telegraf
 
