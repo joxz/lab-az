@@ -4,17 +4,18 @@ This lab builds an IPSec VPN connection from Azure VPN Gateway to Zscaler
 
 Target solution is to use the tunnel to Zscaler in a default route and a no-default route environment (manual proxy on a VM)
 
-Note: This could easily be achievable using a NVA to do the VPN tunnel and DNAT (e.g. Fortigate). However, that is not possible
+Notes: 
+- This could easily be achievable using a firewall NVA to do the VPN tunnel and DNAT (e.g. Fortigate). However, that is not possible
+- Azure VPN Gateway is chosen because of convenience and native integration (e.g. propagating gateway routes to peered vnets)
+- VPN Gateway SKU: VpnGw2AZ[^7] (1,25Gbps throughput - Zscaler offers 400 Mbps bandwidth per tunnel[^6])
 
 ## Things to check out 
 - [x] Check Peering settings (remote gateway transit)
 - [x] Try building tunnel with Zscaler (adjust VPN tunnel settings)
 - [x] DNAT solutions for non-default route environments (how to send traffic into the tunnel)
 - [ ] Test VMSS Bicep config
-- [x] Linux GRE tunnel to Zscaler maybe? [^1] - not possible
+- [x] Linux GRE tunnel to Zscaler maybe? - not possible[^1] 
 - [x] iptables metrics for VM - telegraf iptables plugin
-
-[^1]: [What protocols can I use within VNets?](https://learn.microsoft.com/en-us/azure/virtual-network/virtual-networks-faq#what-protocols-can-i-use-within-vnets)
 
 ## Default route env
 
@@ -143,14 +144,13 @@ Problem: Health probes probably aren't forwarded into the tunnel, because they o
 
 [Azure Load Balancer health probes](https://learn.microsoft.com/en-us/azure/load-balancer/load-balancer-custom-probe-overview#probe-source-ip-address)
 
-[^2]: [What is IP 168.63.129.16?](https://learn.microsoft.com/en-us/azure/load-balancer/load-balancer-faqs#what-is-ip-168-63-129-16-)
+**EDIT:** Azure LoadBalancer only supports backends inside Azure Virtual Networks, not in remote networks[^9]
 
 #### Linux NVA
 
 Use `vm-gwsn` to do a DNAT into the VPN tunnel
 
 Note: Destination port `10101` is a Zscaler Dedicated Proxy Port (DPP)[^3]. If that is not available, change the port to 80 or 443 
-[^3]: [Configuring Dedicated Proxy Ports](https://help.zscaler.com/zia/configuring-dedicated-proxy-ports)
 
 ```
 sysctl -w net.ipv4.ip_forward=1
@@ -232,7 +232,7 @@ VM considerations:
 
 [Expected network bandwidth for Azure VMs](https://learn.microsoft.com/en-us/azure/virtual-machines/dv2-dsv2-series#dsv2-series)
 
-DSv2-series supports ephemeral OS disks, Gen2 and accelerated networking
+DSv2-series supports ephemeral OS disks[^5], Gen2 and accelerated networking
 
 #### Linux NVA as VMSS
 
@@ -241,7 +241,6 @@ For availability and scalability reasons, a VMSS can be considered. The VMs can 
 Instances can be scaled on CPU, RAM and networking metrics
 
 Updating VMSS settings: custom-data update not available in AZCLI and PS [^4] -> maybe possible by changing the bicep template and running bicep deploy again
-[^4]: [https://github.com/MicrosoftDocs/azure-docs/issues/85791](https://github.com/MicrosoftDocs/azure-docs/issues/85791)
 
 ```bash
 > az vmss update -g test-vm -n vmss01 --custom-data cloud-config.yml
@@ -250,10 +249,10 @@ unrecognized arguments: --custom-data cloud-config.yml
 
 > Existing instances in the VMSS will not get the updated custom data, only until they are reimaged.
   Existing instances in the VMSS that are upgraded will not get the updated custom data.
-  New instances will receive the new custom data [^5]
-[^5]: [https://learn.microsoft.com/en-us/answers/questions/477860/how-can-i-pass-newest-customdata-to-vms-in-the-vms](https://learn.microsoft.com/en-us/answers/questions/477860/how-can-i-pass-newest-customdata-to-vms-in-the-vms)
+  New instances will receive the new custom data [^8]
 
-#### iptables metrics with telegraf
+
+#### iptables metrics
 
 Telegraf with the iptables plugin and the Azure Monior output make it very convenient to see iptables metrics (bytes, packets) in Azure Monitor (also visible in the VM metrics blade)
 
@@ -273,3 +272,39 @@ sudo -u telegraf sudo iptables -nvL -t nat
 [[inputs.processes]]
 [[inputs.netstat]]
 ```
+
+Another option would be to install [Netdata](https://github.com/netdata/netdata) to monitor iptables and networking metrics.
+
+```
+wget -O /tmp/netdata-kickstart.sh https://my-netdata.io/kickstart.sh && sh /tmp/netdata-kickstart.sh
+```
+
+Netdata is available at `http://<VMIP>:19999/`
+
+#### SNAT ports
+
+The default ephemeral port range (on my test Ubuntu VM) contains more than 28,000 ports (60999+1-32768=28232)
+
+```sh
+jo@vm-gwsn:~$ sysctl net.ipv4.ip_local_port_range net.ipv4.ip_local_reserved_ports
+net.ipv4.ip_local_port_range = 32768	60999
+net.ipv4.ip_local_reserved_ports =
+```
+
+extend ports:
+
+```sh
+echo 2048 65535 > /proc/sys/net/ipv4/ip_local_port_range
+
+sudo sysctl -w net.ipv4.ip_local_port_range="2048 65535"
+```
+
+[^1]: [What protocols can I use within VNets?](https://learn.microsoft.com/en-us/azure/virtual-network/virtual-networks-faq#what-protocols-can-i-use-within-vnets)
+[^2]: [What is IP 168.63.129.16?](https://learn.microsoft.com/en-us/azure/load-balancer/load-balancer-faqs#what-is-ip-168-63-129-16-)
+[^3]: [Configuring Dedicated Proxy Ports](https://help.zscaler.com/zia/configuring-dedicated-proxy-ports)
+[^4]: [https://github.com/MicrosoftDocs/azure-docs/issues/85791](https://github.com/MicrosoftDocs/azure-docs/issues/85791)
+[^5]: [Ephemeral OS disks for Azure VMs](https://learn.microsoft.com/en-us/azure/virtual-machines/ephemeral-os-disks)
+[^6]: [Configuring an IPSec VPN Tunnel](https://help.zscaler.com/zia/configuring-ipsec-vpn-tunnel)
+[^7]: [Gateway SKUs](https://learn.microsoft.com/en-us/azure/vpn-gateway/vpn-gateway-about-vpngateways#gwsku)
+[^8]: [https://learn.microsoft.com/en-us/answers/questions/477860/how-can-i-pass-newest-customdata-to-vms-in-the-vms](https://learn.microsoft.com/en-us/answers/questions/477860/how-can-i-pass-newest-customdata-to-vms-in-the-vms)
+[^9]: [Azure Load Balancer](https://github.com/adstuart/azure-dnat-floatingip-csr#azure-load-balancer)

@@ -73,9 +73,6 @@ resource ilb 'Microsoft.Network/loadBalancers@2022-07-01' = {
 resource vmssgwsn 'Microsoft.Compute/virtualMachineScaleSets@2022-11-01' = {
   name: 'vmss-gwsn'
   location: location
-  identity: {
-    type: 'SystemAssigned'
- }
   sku:{
     name: 'Standard_D2s_v3'
     tier: 'Standard'
@@ -87,7 +84,7 @@ resource vmssgwsn 'Microsoft.Compute/virtualMachineScaleSets@2022-11-01' = {
   ]
   properties: {
     singlePlacementGroup: false
-    orchestrationMode: 'Flexible'
+    orchestrationMode: 'Uniform'
     upgradePolicy: {
       mode: 'Manual'
     }
