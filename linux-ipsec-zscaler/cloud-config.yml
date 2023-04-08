@@ -12,10 +12,10 @@ runcmd:
   - iptables -t nat -A POSTROUTING -d 185.46.212.88 -j MASQUERADE -m comment --comment "snat traffic to zscaler"
   - echo iptables-persistent iptables-persistent/autosave_v4 boolean true | debconf-set-selections
   - echo iptables-persistent iptables-persistent/autosave_v6 boolean true | debconf-set-selections
-  - apt install iptables-persistent -y
+  - apt install iptables-persistent libreswan -y
   - wget -O /tmp/netdata-kickstart.sh https://my-netdata.io/kickstart.sh && sh /tmp/netdata-kickstart.sh --non-interactive
 write_file:
-  - path: /etc/sysctl.conf
+  - path: /etc/sysctl.d/dnat.conf
     content: |
       net.ipv4.ip_forward=1
       net.ipv6.conf.all.forwarding=1
@@ -24,4 +24,28 @@ write_file:
       net.ipv6.conf.all.accept_redirects = 0
       net.ipv6.conf.default.accept_redirects = 0
       net.ipv4.ip_local_port_range=2048 65535
-    append: true
+  - path: /etc/sudoers.d/netdata
+    content: |
+      netdata ALL = (root) NOPASSWD: /sbin/ipsec whack --status
+      netdata ALL = (root) NOPASSWD: /sbin/ipsec whack --trafficstatus
+  - path: /etc/ipsec.d/zscaler.conf
+    content: |
+      conn zscaler
+        type=tunnel
+        authby=secret
+        auto=start
+        left=%defaultroute
+        leftid=40.114.206.174
+        leftsubnet=0.0.0.0/0
+        right=fra4-vpn.zscaler.net
+        rightsubnet=0.0.0.0/0
+        ikev2=yes
+        ike=aes256-sha2_256;dh14
+        ikelifetime=86400s
+        dpdaction=restart
+        dpdtimeout=20s
+        dpddelay=25s
+        nat-keepalive=yes
+        phase2=esp
+        esp=null-md5
+        salifetime=28800s
