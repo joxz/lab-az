@@ -1,19 +1,5 @@
 #cloud-config
 package_upgrade: true
-runcmd:
-  - echo 1 > /proc/sys/net/ipv4/ip_forward
-  - echo 1 > /proc/sys/net/ipv6/conf/all/forwarding
-  - echo 0 > /proc/sys/net/ipv4/conf/all/accept_redirects
-  - echo 0 > /proc/sys/net/ipv4/conf/all/send_redirects
-  - echo 0 > /proc/sys/net/ipv6/conf/all/accept_redirects
-  - echo 0 > /proc/sys/net/ipv6/conf/default/accept_redirects
-  - echo "2048 65535" > /proc/sys/net/ipv4/ip_local_port_range
-  - iptables -t nat -A PREROUTING -p tcp -i eth0 --dport 10101 -j DNAT --to-destination 185.46.212.88:10101 -m comment --comment "forward port 10101 traffic to zscaler"
-  - iptables -t nat -A POSTROUTING -d 185.46.212.88 -j MASQUERADE -m comment --comment "snat traffic to zscaler"
-  - echo iptables-persistent iptables-persistent/autosave_v4 boolean true | debconf-set-selections
-  - echo iptables-persistent iptables-persistent/autosave_v6 boolean true | debconf-set-selections
-  - apt install iptables-persistent libreswan -y
-  - wget -O /tmp/netdata-kickstart.sh https://my-netdata.io/kickstart.sh && sh /tmp/netdata-kickstart.sh --non-interactive
 write_file:
   - path: /etc/sysctl.d/dnat.conf
     content: |
@@ -49,3 +35,19 @@ write_file:
         phase2=esp
         esp=null-md5
         salifetime=28800s
+runcmd:
+  - echo 1 > /proc/sys/net/ipv4/ip_forward
+  - echo 1 > /proc/sys/net/ipv6/conf/all/forwarding
+  - echo 0 > /proc/sys/net/ipv4/conf/all/accept_redirects
+  - echo 0 > /proc/sys/net/ipv4/conf/all/send_redirects
+  - echo 0 > /proc/sys/net/ipv6/conf/all/accept_redirects
+  - echo 0 > /proc/sys/net/ipv6/conf/default/accept_redirects
+  - echo "2048 65535" > /proc/sys/net/ipv4/ip_local_port_range
+  - iptables -t nat -A PREROUTING -p tcp -i eth0 --dport 10101 -j DNAT --to-destination 185.46.212.88:10101 -m comment --comment "forward port 10101 traffic to zscaler"
+  - iptables -t nat -A POSTROUTING -d 185.46.212.88 -j MASQUERADE -m comment --comment "snat traffic to zscaler"
+  - echo iptables-persistent iptables-persistent/autosave_v4 boolean true | debconf-set-selections
+  - echo iptables-persistent iptables-persistent/autosave_v6 boolean true | debconf-set-selections
+  - apt install iptables-persistent libreswan -y
+  - wget -O /tmp/netdata-kickstart.sh https://my-netdata.io/kickstart.sh && sh /tmp/netdata-kickstart.sh --non-interactive
+  - systemctl enable ipsec
+  - systemctl start ipsec

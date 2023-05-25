@@ -1,0 +1,80 @@
+vm01name="AZ-SEA-PROD-ZPA-VM01"
+vm02name="AZ-SEA-PROD-ZPA-VM02"
+vm01id="/subscriptions/3a30dd33-2457-45b1-9331-da3a9a4b4fcf/resourceGroups/AZ-SEA-PROD-ZPA-RG01/providers/Microsoft.Compute/virtualMachines/AZ-SEA-PROD-ZPA-VM01"
+vm02id="/subscriptions/3a30dd33-2457-45b1-9331-da3a9a4b4fcf/resourceGroups/AZ-SEA-PROD-ZPA-RG01/providers/Microsoft.Compute/virtualMachines/AZ-SEA-PROD-ZPA-VM02"
+logwsid="/subscriptions/3a30dd33-2457-45b1-9331-da3a9a4b4fcf/resourceGroups/AZ-WEUR-SEC-LOGS-RG01/providers/Microsoft.OperationalInsights/workspaces/AZ-SEA-SEC-LOG01"
+cmname="ZPA-SEA-CM01"
+location="southeastasia"
+
+az network watcher connection-monitor create \
+--name $cmname \
+--workspace-ids $logwsid \
+--location "southeastasia" \
+--test-group-name "zpa-onpremise" \
+--endpoint-source-name $vm01name \
+--endpoint-source-resource-id $vm01id \
+--test-config-name "icmp" \
+--protocol "Icmp" \
+--endpoint-dest-name "10.0.217.225" \
+--endpoint-dest-address "10.0.217.225"
+
+az network watcher connection-monitor create \
+--name $cmname \
+--workspace-ids $logwsid \
+--location "southeastasia" \
+--test-group-name "zpa-onpremise" \
+--endpoint-source-name $vm02name \
+--endpoint-source-resource-id $vm0id \
+--test-config-name "icmp" \
+--protocol "Icmp" \
+--endpoint-dest-name "10.0.217.225" \
+--endpoint-dest-address "10.0.217.225"
+
+az network watcher connection-monitor test-configuration add \
+--connection-monitor "ZPA-SEA-CM01" \
+--location "southeastasia" \
+--name "https" \
+--test-groups "zpa-onpremise" \
+--protocol Http \
+--http-request-header-name="Host value=bing.com" \
+--http-request-header "name=UserAgent value=Edge" \
+--http-prefer-https "yes"
+
+az network watcher connection-monitor test-group add \
+--connection-monitor "ZPA-SEA-CM01" \
+--location westus \
+--name MyHTTPTestGroup \
+--endpoint-source-name MySourceEndpoint \
+--endpoint-dest-name MyDestinationEndpoint \
+--test-config-name MyTestConfiguration
+
+az network watcher connection-monitor endpoint add \
+--connection-monitor MyConnectionMonitor \
+--location westus \
+--name MyExternalEndpoint \
+--address "pac.zscaler.net/group.knauf.loc/wpad.pac" \
+--dest-test-groups DefaultTestGroup \
+--type ExternalAddress
+
+vms=("$vm01id" "$vm02id")
+endpoints=("10.0.217.225" "10.0.210.100")
+
+for vm in "${vms[@]}"
+do
+    for endpoint in "${endpoints[@]}"
+    do
+        echo "$vm - $endpoint"
+        az network watcher connection-monitor create \
+            --name $cmname \
+            --workspace-ids $logwsid \
+            --location $location \
+            --test-group-name "zpa-onpremise" \
+            --endpoint-source-name $(echo $vm | awk -F "/" '{print $NF}') \
+            --endpoint-source-resource-id $vm \
+            --test-config-name "icmp" \
+            --protocol "Icmp" \
+            --endpoint-dest-name $endpoint \
+            --endpoint-dest-address $endpoint \
+            --test-group-disable "yes"
+    done
+done
